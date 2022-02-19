@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang = "en">
+    <head>
+        <meta charset = "UTF-8">
+        <title>Supply Chain Costs</title>
+        <script src ="https://d3js.org/d3.v7.min.js"></script>
+        <style>
+            table {
+                border-collapse: collapse;
+                border-spacing: 0;
+            }
+            th, td {
+                padding: 10px 20 px;
+                border: 1px solic #000;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>
+            Supply Chain Costs
+        </h1>
+        <script>
+            const loadData = d3.csv("https://raw.githubusercontent.com/amysfrogs/Week-5-Part-2/main/Exercise/data_sample.csv",
+                function(d) {
+                    return{
+                        date: new Date(d.date),
+                        EstimatedCost: new Number(d.EstimatedCost),
+                        RawMaterial: new Number(d.RawMaterial), 
+                        Workmanship: new Number(d.Workmanship), 
+                        YearlyStorage: new Number(d.YearlyStorage),
+                        ActualCost: new Number(Math.round(new Number(d.RawMaterial) + new Number(d.Workmanship) + new Number(d.YearlyStorage / 12))),
+                        SoldPrice: new Number(Math.round((d.EstimatedCost) * 1.1)),
+                        MarginOfProfit: new Number(Math.round((new Number(d.EstimatedCost) * 1.1 ) - new Number(new Number((new Number(d.RawMaterial) + new Number(d.Workmanship) + new Number(new Number(d.YearlyStorage) / 12))))))}
+                })
+
+            loadData.then(data => {
+                
+            })
+
+            
+
+        </script>
+        
+        <table>
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+    </body>
+    </html>
+    
