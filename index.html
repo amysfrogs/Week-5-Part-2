@@ -5,13 +5,63 @@
         <title>Supply Chain Costs</title>
         <script src ="https://d3js.org/d3.v7.min.js"></script>
         <style>
+            body {
+                text-align: center; 
+                margin: auto;
+            }
+            h4 {
+                font-size: small;
+            }
             table {
                 border-collapse: collapse;
                 border-spacing: 0;
+                margin: auto;
+                font-size: 12pt;
             }
             th, td {
-                padding: 10px 20 px;
-                border: 1px solic #000;
+                padding: 10px;
+                border: 1px solid #000;
+            }
+            th {
+                background-color: #019701;
+            }
+            tr:nth-child(even) {
+                background-color:lightgrey;
+            }
+            svg {
+                width: 80vw;
+                height: 80vh;
+                background-color: rgb(241, 241, 241);
+                margin: 5vw;
+            }
+            .axis text{
+                font-family: sans-serif;
+                font-size: 14pt;
+                font-weight: bold;
+            }
+            .CostEst {
+                stroke-width: 2px;
+                stroke: red;
+                fill: none;
+            }
+            .CostAct {
+                stroke-width: 2px;
+                stroke: blue;
+                fill: none;
+            }
+            .Profit {
+                stroke-width: 2px;
+                stroke: green;
+                fill: none;
+            }
+            .LegendCostEst {
+                fill:red;
+            }
+            .LegendCostAct {
+                fill:blue;
+            }
+            .LegendProfit {
+                fill:green;
             }
         </style>
     </head>
@@ -19,11 +69,55 @@
         <h1>
             Supply Chain Costs
         </h1>
+        <div id = 'container'></div>
+
         <script>
+            const margins = {
+                top: 50, 
+                bottom: 50,
+                left: 10,
+                right: 10
+            }
+
+            const svg = d3.select("body").append("svg");
+            const height = 800;
+            const width = 1000;
+            svg.attr("viewBox", `0 0 ${width} ${height}`)
+
+            var tablecreate =function(data, columns) {
+                var table = d3.select(container).append("table")
+                    var thead = table.append('thead')
+                    var tbody = table.append('tbody')
+
+                    thead.append('tr')
+                        .selectAll('th')
+                        .data(columns)
+                        .enter()
+                        .append('th')
+                        .text(function(d) {return d})
+
+                    var rows = tbody.selectAll('tr')
+                        .data(data)
+                        .enter()
+                        .append('tr')
+
+                    var cells = rows.selectAll('td')
+                        .data(function(row) {
+                            return columns.map(function (column) {
+                                return {column: column, value: row[column]}
+                            })
+                        })
+                        .enter()
+                        .append('td')
+                        .text(function (d) {return d.value})
+
+                    return table;
+            }
+
             const loadData = d3.csv("https://raw.githubusercontent.com/amysfrogs/Week-5-Part-2/main/Exercise/data_sample.csv",
                 function(d) {
                     return{
-                        date: new Date(d.date),
+                        date: new Date (d.date).toISOString().split("T")[0],
                         EstimatedCost: new Number(d.EstimatedCost),
                         RawMaterial: new Number(d.RawMaterial), 
                         Workmanship: new Number(d.Workmanship), 
@@ -33,18 +127,104 @@
                         MarginOfProfit: new Number(Math.round((new Number(d.EstimatedCost) * 1.1 ) - new Number(new Number((new Number(d.RawMaterial) + new Number(d.Workmanship) + new Number(new Number(d.YearlyStorage) / 12))))))}
                 })
 
+            var columns = ['date', 'EstimatedCost', 'RawMaterial', 'Workmanship', 'YearlyStorage', 'ActualCost', 'SoldPrice', 'MarginOfProfit']
+
             loadData.then(data => {
+                tablecreate(data, columns)
+                //find min and maxes of data for use with scales
+                const date_min_max = d3.extent(data, d => new Date(d.date))
+                const min_cost = (d3.min(data, d => d.MarginOfProfit) - 200)
+                const max_cost = d3.max(data, d => d.EstimatedCost)
+                const cost_min_max = [min_cost, max_cost]
+                //add scales
+                const xScale = d3.scaleTime()
+                    .domain(date_min_max)
+                    .range([margins.left, `${width}` - margins.right]);
+                const yScale = d3.scaleLinear()
+                    .domain(cost_min_max)
+                    .range([`${height}` - margins.bottom, margins.top]);
+                //add axis generators
+                const xAxis = d3.axisBottom().scale(xScale);
+                const yAxis = d3.axisLeft().scale(yScale);
+                //append x axis
+                svg.append('g').attr("class", 'axis')
+                    .attr("transform", "translate(0," + yScale(0) + ")")
+                    .call(xAxis.tickFormat(d3.timeFormat("%b")))
+                    .selectAll("text")
+                    .attr("dy", "130px")
+                //append y axis
+                svg.append('g').attr("class", 'axis')
+                    .attr("transform", `translate(${margins.left}, 0)`)
+                    .call(yAxis);
+                //line generators
+                const LineGen_est = d3.line()
+                    .x(d=> xScale(new Date(d.date)))
+                    .y(d => yScale(d.EstimatedCost));
+
+                const LineGen_act = d3.line()
+                    .x(d=> xScale(new Date(d.date)))
+                    .y(d => yScale(d.ActualCost));
+
+                const LineGen_profit = d3.line()
+                    .x(d=> xScale(new Date(d.date)))
+                    .y(d => yScale(d.MarginOfProfit));
                 
+                const lineEst = svg.append('g').attr("class", "CostEst");
+                lineEst
+                    .selectAll('lines')
+                    .data([data])
+                    .enter()
+                    .append("path")
+                    .attr("d",d=>LineGen_est(d))
+                
+                const lineAct = svg.append('g').attr("class", "CostAct");
+                lineAct
+                    .selectAll('lines')
+                    .data([data])
+                    .enter()
+                    .append("path")
+                    .attr("d",d=>LineGen_act(d))
+
+                const lineProfit = svg.append('g').attr("class", "Profit");
+                lineProfit
+                    .selectAll('lines')
+                    .data([data])
+                    .enter()
+                    .append("path")
+                    .attr("d",d=>LineGen_profit(d))
+
+                //add legend
+                const legend = svg.append('g')
+                    .attr("class", "legend")
+                    .attr("transform", "translate(0,40)")
+                    .selectAll()
+                    .data([{name: "Estimated Cost", class: "LegendCostEst"},
+                        {name: "Actual Cost", class: "LegendCostAct"},
+                        {name: "Margin Of Profit", class: "LegendProfit"}])
+                    .enter()
+                    .append("g")
+                    .attr("class", d=>d.class)
+                    .attr("transform", (d, i) => {
+                        return `translate(${width/1.3}, ${i * 20})`
+                    })
+
+                legend.append("rect")
+                    .attr('width', "10px")
+                    .attr('height', "10px")
+                legend.append("text")
+                    .text(d => d.name)
+                    .attr("dx", "20px")
+                    .attr("dy", "10px")  
             })
-
-            
-
         </script>
-        
-        <table>
-            <thead></thead>
-            <tbody></tbody>
-        </table>
+
+        <h3>
+            Amy Westell 
+        </h3>
+        <h4>
+            CIS 568
+            <br>
+            Spring 2022
+        </h4>
     </body>
-    </html>
-    
+</html>
